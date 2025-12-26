@@ -1,4 +1,4 @@
-import { writeFile, readFile, mkdir, access } from "fs/promises";
+import { writeFile, readFile, mkdir, access, stat } from "fs/promises";
 import fetchTreeAndCover, {
   FetchTreeAndCoverParams,
 } from "./workshop/fetchTreeAndCover";

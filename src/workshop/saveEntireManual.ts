@@ -1,125 +1,142 @@
-import { mkdir, writeFile } from "fs/promises";
-import { join, resolve } from "path";
-import fetchManualPage, { FetchManualPageParams } from "./fetchManualPage";
+import {mkdir, writeFile, stat} from "fs/promises";
+import {join, resolve} from "path";
+import fetchManualPage, {FetchManualPageParams} from "./fetchManualPage";
 import client from "../client";
-import { Page } from "playwright";
-import { CLIArgs } from "../processCLIArgs";
-import saveStream, { sanitizeName } from "../utils";
+import {Page} from "playwright";
+import {CLIArgs} from "../processCLIArgs";
+import saveStream, {sanitizeName, checkFileExists} from "../utils";
 
 export type SaveOptions = Pick<CLIArgs, "saveHTML" | "ignoreSaveErrors">;
 
 export default async function saveEntireManual(
-  path: string,
-  toc: any,
-  fetchPageParams: FetchManualPageParams,
-  browserPage: Page,
-  options: SaveOptions
+    path: string,
+    toc: any,
+    fetchPageParams: FetchManualPageParams,
+    browserPage: Page,
+    options: SaveOptions
 ) {
-  const exploded = Object.entries(toc);
+    const exploded = Object.entries(toc);
 
-  for (let i = 0; i < exploded.length; i++) {
-    const [name, docID] = exploded[i];
+    for (let i = 0; i < exploded.length; i++) {
+        const [name, docID] = exploded[i];
 
-    if (typeof docID === "string" && docID.length > 0) {
-      // download and save document
-      if (docID.startsWith("http") && docID.includes(".pdf")) {
-        console.log(`Downloading manual PDF ${name} ${docID}`);
+        if (typeof docID === "string" && docID.length > 0) {
+            let filename = sanitizeName(name);
+            // 255 is the max filename length on most filesystems, but 200 should be enough regardless
+            if (filename.length > 200) {
+                filename =
+                    // 255 = max filename length, 18 = length of " ( truncated).html",
+                    // docID.length = length of docID
 
-        try {
-          const pdfReq = await client({
-            url: docID,
-            responseType: "stream",
-          });
+                    // including the docID in the filename to prevent collisions as names may differ
+                    // at the end rather than in the first ~255 characters
+                    filename.slice(0, 254 - 19 - docID.length) + ` (${docID} truncated)`;
 
-          const filePath = join(
-            path,
-            `/${docID.slice(docID.lastIndexOf("/"))}`
-          );
-          await saveStream(pdfReq.data, filePath);
-        } catch (e) {
-          console.error(`Error saving file ${name} with url ${docID}: ${e}`);
-        }
-        continue;
-      } else if (docID.includes("/")) {
-        console.error(`Skipping relative path ${docID} for name ${name}`);
-        continue;
-      }
+                console.log(`-> Truncating filename, learn more in the README`);
+            }
 
-      console.log(
-        `Downloading manual page ${name} as ${
-          options.saveHTML ? "HTML, " : ""
-        }PDF (docID: ${docID})`
-      );
-      let filename = sanitizeName(name);
-      // 255 is the max filename length on most filesystems, but 200 should be enough regardless
-      if (filename.length > 200) {
-        filename =
-          // 255 = max filename length, 18 = length of " ( truncated).html",
-          // docID.length = length of docID
+            // download and save document
+            if (docID.startsWith("http") && docID.includes(".pdf")) {
+                console.log(`Downloading manual PDF ${name} ${docID}`);
+                try {
+                    await stat(filename);
+                    console.log(`file found, ${filename}`);
+                } catch {
+                    console.log(`file not found, ${filename}`);
+                    try {
+                        const pdfReq = await client({
+                            url: docID,
+                            responseType: "stream",
+                        });
 
-          // including the docID in the filename to prevent collisions as names may differ
-          // at the end rather than in the first ~255 characters
-          filename.slice(0, 254 - 19 - docID.length) + ` (${docID} truncated)`;
+                        const filePath = join(
+                            path,
+                            `/${docID.slice(docID.lastIndexOf("/"))}`
+                        );
+                        await saveStream(pdfReq.data, filePath);
+                    } catch (e) {
+                        console.error(`Error saving file ${name} with url ${docID}: ${e}`);
+                    }
+                }
+                continue;
+            } else if (docID.includes("/")) {
+                console.error(`Skipping relative path ${docID} for name ${name}`);
+                continue;
+            }
 
-        console.log(`-> Truncating filename, learn more in the README`);
-      }
+            console.log(
+                `Downloading manual page ${name} as ${
+                    options.saveHTML ? "HTML, " : ""
+                }PDF (docID: ${docID})`
+            );
+            console.log();
+            try {
+                await stat(resolve(join(path, `/${filename}.pdf`)));
+                console.log('file found, skipping fetch content...');
+            } catch {
+                ///console.log(`file not found, ${resolve(join(path, `/${filename}.pdf`))}`);
+                try {
+                    const pageHTML = await fetchManualPage({
+                        ...fetchPageParams,
+                        searchNumber: docID,
+                    });
 
-      try {
-        const pageHTML = await fetchManualPage({
-          ...fetchPageParams,
-          searchNumber: docID,
-        });
+                    if (options.saveHTML) {
+                        const htmlPath = resolve(join(path, `/${filename}.html`));
+                        await writeFile(htmlPath, pageHTML);
+                    }
 
-        if (options.saveHTML) {
-          const htmlPath = resolve(join(path, `/${filename}.html`));
-          await writeFile(htmlPath, pageHTML);
-        }
-
-        await browserPage.setContent(pageHTML, { waitUntil: "load" });
-        // removes this little color-coded thing that doesn't load properly
-        // in Playwright, just says "Workshop Manual Graphics Training"...
-        await browserPage.evaluate(
-          'document.querySelectorAll("body > div > table > tbody > tr > td:nth-child(2)").forEach(e => e.remove())'
-        );
-        await browserPage.pdf({
-          path: join(path, `/${filename}.pdf`),
-        });
-      } catch (e) {
-        if (options.ignoreSaveErrors) {
-          console.error(
-            `Continuing to download after error with ${name} (docID ${docID}):`,
-            e
-          );
+                    await browserPage.setContent(pageHTML, {waitUntil: "load"});
+                    // removes this little color-coded thing that doesn't load properly
+                    // in Playwright, just says "Workshop Manual Graphics Training"...
+                    await browserPage.evaluate(
+                        'document.querySelectorAll("body > div > table > tbody > tr > td:nth-child(2)").forEach(e => e.remove())'
+                    );
+                    await browserPage.pdf({
+                        path: join(path, `/${filename}.pdf`),
+                    });
+                } catch (e) {
+                    if (options.ignoreSaveErrors) {
+                        console.error(
+                            `Continuing to download after error with ${name} (docID ${docID}):`,
+                            e
+                        );
+                    } else {
+                        console.error(
+                            `Encountered an error downloading ${name} (docID ${docID})`
+                        );
+                        throw e;
+                    }
+                }
+            }
         } else {
-          console.error(
-            `Encountered an error downloading ${name} (docID ${docID})`
-          );
-          throw e;
-        }
-      }
-    } else {
-      // create folder and traverse
-      const newPath = join(path, sanitizeName(name));
+            // create folder and traverse
+            const newPath = join(path, sanitizeName(name));
 
-      try {
-        await mkdir(newPath, { recursive: true });
-      } catch (e) {
-        if ((e as any).code === "EEXIST") {
-          console.log(
-            `Not creating folder ${newPath} because it already exists.`
-          );
-        }
-      }
+            try {
+                await mkdir(newPath, {recursive: true});
+            } catch (e) {
+                if ((e as any).code === "EEXIST") {
+                    console.log(
+                        `Not creating folder ${newPath} because it already exists.`
+                    );
+                }
+            }
 
-      await saveEntireManual(
-        newPath,
-        docID,
-        fetchPageParams,
-        browserPage,
-        options
-      );
+            await saveEntireManual(
+                newPath,
+                docID,
+                fetchPageParams,
+                browserPage,
+                options
+            );
+        }
+//}
+//else {
+// console.log('skipping file already downloaded');
+//continue;
+//}
     }
-  }
 }
 
 // export async function saveURLAsPDF(

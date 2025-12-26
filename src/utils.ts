@@ -1,7 +1,14 @@
-import { access } from "fs/promises";
+import { access, stat } from "fs/promises";
 import { constants, createWriteStream } from "fs";
 import { type as osType } from "os";
-
+export async function checkFileExists(f: string): Promise<boolean> {
+  try {
+    await stat(f);
+    return true;
+  } catch {
+    return false;
+  }
+}
 export async function fileExists(path: string): Promise<boolean> {
   try {
     await access(path, constants.R_OK | constants.W_OK);

@@ -2,7 +2,7 @@ import { WiringFetchPageParams } from "./savePage";
 import { WiringTableOfContentsEntry } from "./fetchTableOfContents";
 import { Page } from "playwright";
 import fetchConnectorList from "./fetchConnectorList";
-import { sanitizeName } from "../utils";
+import { sanitizeName, checkFileExists } from "../utils";
 import { join } from "path";
 import { writeFile } from "fs/promises";
 
@@ -27,7 +27,7 @@ export default async function saveConnector(
       title = `${title.slice(0, 150)} (truncated) - ${connector.Name}`;
     }
     const path = join(folderPath, `${title}.pdf`);
-
+    
     const url = new URL(
       "https://www.fordtechservice.dealerconnection.com/wiring/face/"
     );

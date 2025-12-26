@@ -8,7 +8,7 @@ import {
 import fetchSvg from "./fetchSvg";
 import { join, resolve } from "path";
 import { writeFile } from "fs/promises";
-import { sanitizeName } from "../utils";
+import { sanitizeName, checkFileExists } from "../utils";
 import fetchBasicPage from "./fetchBasicPage";
 
 export interface WiringFetchPageParams extends WiringFetchParams {
@@ -46,10 +46,17 @@ export default async function savePage(
       // page is a BasicPagePageListItem, download PDF
       const pdfPath = join(folderPath, `${subPage.Text}.pdf`);
 
-      await fetchBasicPage(pdfPath, params.book);
+      const testsvgPath = join(folderPath, `${subPage.Text}.svg`);
+      
+      if (!checkFileExists(testsvgPath) || !checkFileExists(pdfPath)) {
+        await fetchBasicPage(pdfPath, params.book);
+      } else {
+		console.log('skipping fetch url');
+	  }
       continue;
     }
-
+	const testsvgPath = join(folderPath, `${subPage}.svg`);
+      if (!checkFileExists(testsvgPath)) {
     const svg = await fetchSvg(
       doc.Number,
       subPage,
@@ -96,5 +103,8 @@ export default async function savePage(
       path: pdfPath,
       landscape: true,
     });
+  } else {
+	console.log('skipping fetch svg');
+}
   }
 }

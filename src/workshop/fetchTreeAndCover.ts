@@ -20,7 +20,7 @@ export default async function fetchTreeAndCover(
 
   const req = await client({
     method: "POST",
-    url: `https://www.fordservicecontent.com/Ford_Content/PublicationRuntimeRefreshPTS//publication/${params.environment}/TreeAndCover/workshop/${params.category}/~WSMX/${params.vehicleId}`,
+    url: `https://www.fordservicecontent.com/Ford_Content/PublicationRuntimeRefreshPTS//publication/${params.environment}/TreeAndCover/workshop/${params.category}/~W${params.book}/${params.vehicleId}`,
     params: {
       bookTitle: params.bookTitle,
       WiringBookTitle: params.WiringBookTitle,

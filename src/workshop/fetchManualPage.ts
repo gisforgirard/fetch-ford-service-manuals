@@ -26,7 +26,7 @@ export default async function fetchManualPage(
 ): Promise<string> {
   const req = await client({
     method: "POST",
-    url: "https://www.fordservicecontent.com/Ford_Content/PublicationRuntimeRefreshPTS//publication/Proc?environment=prod_1_3_362022",
+    url: "https://www.fordservicecontent.com/Ford_Content/PublicationRuntimeRefreshPTS//publication/Proc?environment=prod_1_3_12232025",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
     },
