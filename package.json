@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
-  "packageManager": "yarn@3.2.0",
+  "packageManager": "yarn@4.1.0",
   "devDependencies": {
     "@types/command-line-args": "^5.2.0",
     "@types/jsdom": "^16.2.14",
@@ -15,15 +15,17 @@
   },
   "dependencies": {
     "@types/command-line-usage": "^5.0.2",
-    "axios": "^0.26.0",
+    "axios": "^1.7.2",
     "command-line-args": "^5.2.1",
     "command-line-usage": "^6.1.1",
     "jsdom": "^19.0.0",
-    "playwright": "^1.19.2",
-    "qs": "^6.10.3"
+    "playwright": "^1.42.1",
+    "qs": "^6.10.3",
+    "svg-to-img": "^2.0.9"
   },
   "scripts": {
     "start": "ts-node src/index.ts",
+    "inspect": "yarn node --inspect-brk -r ts-node/register src/index.ts",
     "format": "prettier --write src/**/*.ts",
     "playwright-setup": "playwright install chromium && playwright install-deps chromium"
   }
